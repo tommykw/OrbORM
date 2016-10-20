@@ -47,7 +47,7 @@ runBot confFile = do
     userId <- getUserId conf
     when (isNothing userId) $ error "accessToken must contain a'-'"
     void . HTTP.withManager $ \mngr -> do
-        leftIO . T.putStrLn $ T.unwords ["Listening for Tweets to', username, "..."]
+        leftIO . T.putStrLn $ T.unwords ["Listening for Tweets to", username, "..."]
 
     let lenv = LtxbotEnv {
         envUserId = fromJust userId,
