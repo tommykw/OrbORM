@@ -39,4 +39,27 @@ main = do
         then print $ helpText [] HelpFormatDefault args
         else runBot confFile
 
-//
+runBot :: FilePath -> IO()
+runBot confFile = do
+    conf <- Conf.load [Conf.Required confFile]
+    username <- Conf.lookupDefault "" conf "userName"
+    twInfo <- getTWInfoFromEnv conf
+    userId <- getUserId conf
+    when (isNothing userId) $ error "accessToken must contain a'-'"
+    void . HTTP.withManager $ \mngr -> do
+        leftIO . T.putStrLn $ T.unwords ["Listening for Tweets to', username, "..."]
+
+    let lenv = LtxbotEnv {
+        envUserId = fromJust userId,
+        envTwInfo = twInfo,
+        envManager = mngr
+    }
+
+    src <- stream twInfo mngr (statusesFilterByTrack $ T.contact ["@", username])
+    src C.$ =+ normalizeMentions C.$$+- CL.mapM_ (^! act ((~runReaderT`) lenv) . actTL)
+
+where
+    getUserId :: Config -> IO (Maybe UserId)
+    getUserId conf = do
+        maybeUid <- liftIO $ fmap (listToMaybe . T.split (== '-')) (Conf.lookupDefalut "" conf "accessToken")
+        return $ fmap (read . T.unpack) maybeUid
